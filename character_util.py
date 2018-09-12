@@ -19,7 +19,7 @@ SPECIAL = {68: '.', 69: ' ', 70: "1", 71: "2", 72: "3", 73: "4", 74: "5", 75: "6
            80: "A", 81: "B", 82: "C", 83: "D", 84: "E", 85: "F", 86: "G", 87: "H", 88: "I", 89: "J", 90: "K", 91: "L",
            92: "M",
            93: "N", 94: "O", 95: "P", 96: "Q", 97: "R", 98: "S", 99: "T", 100: "U", 101: "V", 102: "W", 103: "X",
-           104: "Y", 105: "Z"}
+           104: "Y", 105: "Z", 106:"<sos>", 107:"<eos>", 108:"<pad>"}
 
 JAMO = list(CHO.values()) + list(JOONG.values()) + list(JONG.values())[1:]
 JAMO_index = list(CHO.keys()) + list(JOONG.keys()) + list(JONG.keys())
@@ -27,6 +27,7 @@ JAMO_index = list(CHO.keys()) + list(JOONG.keys()) + list(JONG.keys())
 NUM_CHO = 19
 NUM_JOONG = 21
 NUM_JONG = 28
+VOCA_SIZE = len(CHO)+len(JOONG)+len(JONG)+len(SPECIAL)
 
 FIRST_HANGUL_UNICODE = 44032
 LAST_HANGUL_UNICODE = 0xD7A3
@@ -108,7 +109,7 @@ def compose_sentence(char_text_idx):
             tmp_JONG = ""
     return result
 
-
+'''
 decompose_letter("이")
 text = "그 애 전화번호 알아?"
 char_text, char_text_idx = decompose_sentence(text)
@@ -116,5 +117,5 @@ char_text
 char_text_idx
 compose_letter(char_text_idx[0], char_text_idx[1], char_text_idx[2])
 compose_sentence(char_text_idx)
-
+'''
 

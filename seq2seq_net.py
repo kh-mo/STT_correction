@@ -1,46 +1,42 @@
 import numpy as np
 import tensorflow as tf
 from itertools import chain
+import make_train_set
 
 # 학습용 데이터
-source = [['<sos>', '타임', ' ', '아웃', '<eos>'],
-          ['<sos>', '너무', ' ', '자랑스러워', '<eos>'],
-          ['<sos>', '판다', '랑', ' ', '나', '는', ' ', '오늘', ' ', '못', ' ', '갈', ' ', '거', ' ', '같아', '<eos>']]
-
-target = [['<sos>', 'time', ' ', 'out', '<eos>'],
-          ['<sos>', 'i', ' ', 'am', ' ', 'proud', ' ', 'of', ' ', 'you', '<eos>'],
-          ['<sos>', 'pan', ' ', 'and', ' ', 'i', ' ', 'can\'t', ' ', 'make', ' ', 'it', ' ', 'today', '<eos>']]
-
-dic = list(set(list(chain(*source)) + list(chain(*target)))) + ["<pad>"]
+# [108] == <pad>
+source = make_train_set.input
+target = make_train_set.output
 
 # 배치 구성
 fedic_encoder_seq_len_except_pad = [len(i) for i in source]
 fedic_encoder_x = []
+
 for sentence in source:
     if len(sentence) == max(fedic_encoder_seq_len_except_pad):
-        fedic_encoder_x.append([dic.index(i) for i in sentence])
+        fedic_encoder_x.append(sentence)
     else:
-        sentence += ['<pad>']*(max(fedic_encoder_seq_len_except_pad) - len(sentence))
-        fedic_encoder_x.append([dic.index(i) for i in sentence])
+        sentence += [108]*(max(fedic_encoder_seq_len_except_pad) - len(sentence))
+        fedic_encoder_x.append(sentence)
 
 fedic_decoder_seq_len_except_pad = [len(i)-1 for i in target]
 fedic_decoder_x = []
 real_label = []
 for sentence in target:
     if (len(sentence)-1) == max(fedic_decoder_seq_len_except_pad):
-        fedic_decoder_x.append([dic.index(i) for i in sentence[:-1]])
-        real_label.append([dic.index(i) for i in sentence[1:]])
+        fedic_decoder_x.append(sentence[:-1])
+        real_label.append(sentence[1:])
     else:
-        sentence += ['<pad>']*(max(fedic_decoder_seq_len_except_pad) - len(sentence) + 1)
-        fedic_decoder_x.append([dic.index(i) for i in sentence[:-1]])
-        real_label.append([dic.index(i) for i in sentence[1:]])
+        sentence += [108]*(max(fedic_decoder_seq_len_except_pad) - len(sentence) + 1)
+        fedic_decoder_x.append(sentence[:-1])
+        real_label.append(sentence[1:])
 
 # 파라미터 설정
 number_of_document = None
 number_of_encoder_word = None
 number_of_decoder_word = None
 lstm_hidden_size = 200
-voca_size = len(dic)
+voca_size = make_train_set.character_util.VOCA_SIZE
 word_embedding_size = 30
 max_gradient_norm = 0.1
 learning_rate = 1e-4
@@ -88,25 +84,21 @@ update_step = optimizer.apply_gradients(zip(clipped_gradients, params))
 sess = tf.Session()
 sess.run(tf.global_variables_initializer())
 
-for i in range(2000):
-    _, print_loss = sess.run([update_step,train_loss], feed_dict={encoder_x:fedic_encoder_x,
-                                                                  source_sequence_lengths:fedic_encoder_seq_len_except_pad,
-                                                                  decoder_x:fedic_decoder_x,
-                                                                  decoder_lengths:fedic_decoder_seq_len_except_pad,
-                                                                  y:real_label})
+for i in range(10000):
+    _, print_loss = sess.run([update_step,train_loss],
+                             feed_dict={encoder_x:fedic_encoder_x,
+                                        source_sequence_lengths:fedic_encoder_seq_len_except_pad,
+                                        decoder_x:fedic_decoder_x,
+                                        decoder_lengths:fedic_decoder_seq_len_except_pad,
+                                        y:real_label})
     if i%500 == 0 :
-        a1, a2 = sess.run([tf.argmax(tf.nn.softmax(logits), axis=2), train_loss], feed_dict={encoder_x: fedic_encoder_x,
-                                                                                             source_sequence_lengths: fedic_encoder_seq_len_except_pad,
-                                                                                             decoder_x: fedic_decoder_x,
-                                                                                             decoder_lengths: fedic_decoder_seq_len_except_pad, y: real_label})
-        print_list = []
-        for i in a1:
-            sen = ""
-            for j in i:
-                sen += dic[j]+" "
-            print_list.append(sen)
+        show_sample, tr_loss = sess.run([tf.argmax(tf.nn.softmax(logits), axis=2), train_loss],
+                                        feed_dict={encoder_x: fedic_encoder_x,
+                                                   source_sequence_lengths: fedic_encoder_seq_len_except_pad,
+                                                   decoder_x: fedic_decoder_x,
+                                                   decoder_lengths: fedic_decoder_seq_len_except_pad, y: real_label})
 
-        print("sentence : ", print_list, "loss : ", a2)
+        print("sentence : ", make_train_set.character_util.compose_sentence(list(show_sample[0])), "loss : ", tr_loss)
 
 # model save
 saver = tf.train.Saver()
