@@ -47,3 +47,8 @@ for idx, row in enumerate(data_output):
     else:
         ts_output.append(sos_token + output_idx + eos_token)
         ts_output_view.append(output_char)
+
+
+
+tr_input_char_info = []
+ts_input_char_info = []
