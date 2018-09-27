@@ -2,19 +2,19 @@ import os
 import time
 import random
 import numpy as np
-import make_train_set_syllable
 import tensorflow as tf
 from copy import deepcopy
 from itertools import chain
+import syllable.make_model_data as dataset
 
 # 학습용 데이터
 # 학습 평균 자소갯수 : 56개
 # 추론 평균 자소갯수 : 32개
-tr_source = make_train_set_syllable.tr_input
-tr_target = make_train_set_syllable.tr_output
-ts_source = make_train_set_syllable.ts_input
-ts_target = make_train_set_syllable.ts_output
-pad_token = [make_train_set_syllable.s_util.chr2idx['<pad>']]
+tr_source = dataset.tr_input
+tr_target = dataset.tr_output
+ts_source = dataset.ts_input
+ts_target = dataset.ts_output
+pad_token = [dataset.util.syl2idx['<pad>']]
 
 # 배치 함수
 def feed_dict(source, target, pad_token, batch_size):
@@ -25,8 +25,8 @@ def feed_dict(source, target, pad_token, batch_size):
     batch_x = [source_for_batch[i] for i in idx]
     batch_y = [target_for_batch[i] for i in idx]
 
-    batch_x_length = [len(i) for i in batch_x] # batch_x_length == fedic_encoder_seq_len_except_pad
-    batch_y_length = [len(i)-1 for i in batch_y] # batch_y_length == fedic_decoder_seq_len_except_pad
+    batch_x_length = [len(i) for i in batch_x]
+    batch_y_length = [len(i)-1 for i in batch_y]
 
     for batch_x_idx, input_sentence in enumerate(batch_x):
         if len(input_sentence) == max(batch_x_length):
@@ -97,20 +97,22 @@ def wer_value(answer, predict):
 def cal_wer(answer_list, predict_list):
     test_predict_for_wer = []
     for idx in range(len(predict_list)):
-        test_predict_for_wer.append(make_train_set_syllable.s_util.compose_sentence(list(predict_list[idx])))
+        test_predict_for_wer.append(dataset.util.compose_sentence(list(predict_list[idx])))
     return wer_value(answer_list, test_predict_for_wer)
 
 test_answer_for_wer = []
 for i in ts_target:
-    test_answer_for_wer.append(make_train_set_syllable.s_util.compose_sentence(i).replace("<sos>", "").replace("<eos>", ""))
+    test_answer_for_wer.append(dataset.util.compose_sentence(i).replace("<sos>", "").replace("<eos>", ""))
 
 # 하이퍼파라미터
+train_batch_size = 32
+test_batch_size = 32
 number_of_document = None # batch_size와 동일
 number_of_encoder_word = None
 number_of_decoder_word = None
 word_embedding_size = 200
 lstm_hidden_size = 200
-voca_size = make_train_set_syllable.s_util.voca_size
+voca_size = dataset.util.voca_size
 max_gradient_norm = 0.1
 starter_learning_rate = 1e-3
 num_encoder_layer = 2
@@ -177,16 +179,16 @@ train_writer = tf.summary.FileWriter(os.getcwd() + "/save/train", sess.graph)
 
 start_time = time.time()
 for i in range(20000):
-    _, tr_loss = sess.run([update_step,train_loss], feed_dict(tr_source, tr_target, pad_token, batch_size=32))
+    _, tr_loss = sess.run([update_step,train_loss], feed_dict(tr_source, tr_target, pad_token, batch_size=train_batch_size))
     if i%500 == 0 :
         ts_loss, perplexity, lr, show_sample = sess.run([train_loss, tf.reduce_mean(get_perplexity(logits)), learning_rate, tf.argmax(tf.nn.softmax(logits), axis=2)],
-                                        feed_dict(ts_source, ts_target, pad_token, batch_size=32))
+                                        feed_dict(ts_source, ts_target, pad_token, batch_size=test_batch_size))
         # save
         saver.save(sess, os.getcwd()+"/save/"+str(num_encoder_layer)+"enc_"+str(num_decoder_layer)+"dec_"+str(i)+"iter_"+str(perplexity)+"plx_"+str(ts_loss)+"loss_wer_model.ckpt")
         show_time = time.time() - start_time
         print("iteration :", i, "소요시간 :", round(show_time, 3),
               "tr_loss :", tr_loss, "ts_loss :", ts_loss, "perplexity :", perplexity, "wer :", cal_wer(test_answer_for_wer, show_sample),
-              "learning_rate :", lr, "sentence :", make_train_set_syllable.s_util.compose_sentence(list(show_sample[0])))
+              "learning_rate :", lr, "sentence :", dataset.util.compose_sentence(list(show_sample[0])))
 
 end_time = time.time() - start_time
 print(" 총 소요시간 :", round(end_time, 3), "초")
